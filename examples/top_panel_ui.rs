@@ -63,21 +63,21 @@ impl eframe::App for MyApp {
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate14400, "14000");
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate57600, "57600");
             //                 ui.end_row();
-        
+
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate1200, "1200");
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate19200, "19200");
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate115200, "115200");
-        
+
             //                 ui.end_row();
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate2400, "2400");
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate28800, "28800");
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate128000, "128000");
-        
+
             //                 ui.end_row();
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate4800, "4800");
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate38400, "38400");
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate256000, "256000");
-        
+
             //                 ui.end_row();
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate9600, "9600");
             //                 ui.radio_value(&mut self.radio_value, Baudrates::Baudrate56000, "56000");

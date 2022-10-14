@@ -1,3 +1,4 @@
 [alias]
 rre = "run --release --example"
 re = "run --example"
+rr = "run --release"

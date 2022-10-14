@@ -10,7 +10,7 @@ fn main() {
     println!("--------------------------------------------------");
 
     // let ports: Vec<serialport::SerialPortInfo> = serialport::available_ports().unwrap();
-    let ports: Vec<String> = 
+    let ports: Vec<String> =
         available_ports()
         .unwrap()
         .iter()
@@ -24,4 +24,6 @@ fn main() {
     for port in ports {
         println!("{:?}", port);
     }
+
+    // let port = serialport::SerialPortBuilder::
 }
