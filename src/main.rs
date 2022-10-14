@@ -37,6 +37,8 @@ struct MyApp {
     serial_devices: Vec<String>,
     selected_serial_device: String,
 
+    current_text: String,
+
 }
 
 impl Default for MyApp {
@@ -60,7 +62,9 @@ impl Default for MyApp {
             selected_data_bits: 5,
             port_settings_open: false,
             serial_devices: serial::available_ports(),
-            selected_serial_device: Default::default()
+            selected_serial_device: Default::default(),
+
+            current_text: "".to_string(),
         };
 
         app.selected_serial_device = if app.serial_devices.is_empty() {
@@ -75,7 +79,18 @@ impl Default for MyApp {
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::TopBottomPanel::bottom("my_panel").show(ctx, |ui| {
+            ui.label(format!("{} | {} data bits: {} stop bits: {} parity: {} flow control: {}",
+            self.selected_serial_device,
+            self.baudrate,
+            self.selected_data_bits,
+            self.selected_stop_bits,
+            self.selected_parity,
+            self.selected_flow_control));
+         });
+
         egui::CentralPanel::default().show(ctx, |ui| {
+            egui::widgets::global_dark_light_mode_switch(ui);
 
             ui.label(format!("baudrate = {}\nport = {}\ndata bits = {}\nstop bits = {}\nparity = {}\nflow control = {}\nlocal echo = {}",
                 self.baudrate,
@@ -168,7 +183,9 @@ impl eframe::App for MyApp {
                         ui.end_row();
 
                     });
-                })
+                });
+
+            ui.add_sized(ui.available_size(), egui::TextEdit::multiline(&mut self.current_text).interactive(false));
         });
     }
 }
