@@ -1,6 +1,6 @@
 use eframe::egui;
 
-use egui::{Grid, Window, ComboBox};
+use egui::{Grid, Window, ComboBox, TextBuffer};
 
 mod serial;
 
@@ -39,6 +39,7 @@ struct MyApp {
 
     current_text: String,
 
+    device_connected: bool,
 }
 
 impl Default for MyApp {
@@ -47,6 +48,7 @@ impl Default for MyApp {
             baudrates: vec![9600, 115200, 1000000],
             baudrate: 115200,
             data_bits: [5, 6, 7, 8],
+            selected_data_bits: 8,
 
             stop_bits: [1, 2],
             selected_stop_bits: 1,
@@ -59,12 +61,13 @@ impl Default for MyApp {
 
             local_echo: false,
 
-            selected_data_bits: 5,
             port_settings_open: false,
             serial_devices: serial::available_ports(),
             selected_serial_device: Default::default(),
 
             current_text: "".to_string(),
+
+            device_connected: false,
         };
 
         app.selected_serial_device = if app.serial_devices.is_empty() {
@@ -80,37 +83,44 @@ impl Default for MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::bottom("my_panel").show(ctx, |ui| {
-            ui.label(format!("{} | {} data bits: {} stop bits: {} parity: {} flow control: {}",
+            ui.label(format!("{} | {}, {}{}{} flow control: {}",
             self.selected_serial_device,
             self.baudrate,
             self.selected_data_bits,
+            self.selected_parity.char_range(0..1),
             self.selected_stop_bits,
-            self.selected_parity,
-            self.selected_flow_control));
-         });
+            self.selected_flow_control,
+            ));
+
+            egui::widgets::global_dark_light_mode_switch(ui);
+        });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            egui::widgets::global_dark_light_mode_switch(ui);
+            ui.vertical(|ui| {
+                if !self.device_connected {
+                    if ui.button("Connect").clicked() {
+                        if let Ok(serial_port) = serialport::new(&self.selected_serial_device, self.baudrate).open() {
+                            self.device_connected = true;
+                            println!("Device {} connected", serial_port.name().unwrap());
+                        }
 
-            ui.label(format!("baudrate = {}\nport = {}\ndata bits = {}\nstop bits = {}\nparity = {}\nflow control = {}\nlocal echo = {}",
-                self.baudrate,
-                self.selected_serial_device,
-                self.selected_data_bits,
-                self.selected_stop_bits,
-                self.selected_parity,
-                self.selected_flow_control,
-                self.local_echo));
+                    }
+                } else if ui.button("Disconnect").clicked() {
 
-            if ui.button("Open port settings").clicked() {
-                self.serial_devices = serial::available_ports();
-                self.selected_serial_device = if self.serial_devices.is_empty() {
-                    "".to_string()
-                } else {
-                    self.serial_devices[0].clone()
-                };
+                    self.device_connected = false;
+                }
 
-                self.port_settings_open = true;
-            }
+                if ui.button("Open port settings").clicked() {
+                    self.serial_devices = serial::available_ports();
+                    self.selected_serial_device = if self.serial_devices.is_empty() {
+                        "".to_string()
+                    } else {
+                        self.serial_devices[0].clone()
+                    };
+
+                    self.port_settings_open = true;
+                }
+            });
 
             Window::new("Port Setup")
                 .collapsible(false)
