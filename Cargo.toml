@@ -11,3 +11,5 @@ eframe = "0.19.0"
 
 serial2 = "0.1.6"
 serialport = "4.2.0"
+crossbeam-channel = "0.5.6"
+crossbeam = "0.8.1"

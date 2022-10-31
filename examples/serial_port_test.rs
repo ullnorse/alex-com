@@ -4,6 +4,15 @@ use serialport::available_ports;
 use std::time::Duration;
 
 fn main() {
+    // let ports = serial2::SerialPort::available_ports().unwrap();
+
+    // for port in ports {
+    //     println!("{:?}", port);
+    // }
+
+    // println!("--------------------------------------------------");
+
+    // let ports: Vec<serialport::SerialPortInfo> = serialport::available_ports().unwrap();
     let ports: Vec<String> =
         available_ports()
         .unwrap()
@@ -15,33 +24,40 @@ fn main() {
         })
         .collect();
 
-    for port in ports {
+    for port in &ports {
         println!("{:?}", port);
     }
 
-    let mut serial_port = serialport::new("COM5", 115200)
-        .timeout(std::time::Duration::from_millis(100)).open().unwrap();
+    
+
+    let mut port = serialport::new(ports[0].clone(), 9600)
+        .open()
+        .unwrap();
+
+    port.clear(serialport::ClearBuffer::All).unwrap();
 
     let mut buffer = [0u8; 1];
-    let mut v = Vec::<u8>::new();
-    let mut cnt = 0;
 
-    serial_port.clear(serialport::ClearBuffer::Input).unwrap();
+    let mut q = Vec::new();
 
     loop {
-        match serial_port.read_exact(&mut buffer) {
+        match port.read_exact(&mut buffer) {
             Ok(_) => {
-                if buffer[0] == b'\n' {
-                    println!("{} {}", cnt, String::from_utf8_lossy(v.as_slice()));
-                    v.clear();
-                    cnt += 1;
-                } else {
-                    v.push(buffer[0]);
+                let c = buffer[0] as char;
+                match c {
+                    '\n' => {
+                        q.push(c);
+                        let s: String = q.iter().collect();
+                        print!("{s}");
+                    },
+                    _ => q.push(c),
                 }
             },
-            Err(e) if e.kind() == io::ErrorKind::TimedOut => (),
-            Err(e) => println!("{}", e)
-
+            Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
+            Err(e) => eprintln!("{:?}", e)
         }
+
     }
+
+    // let port = serialport::SerialPortBuilder::
 }
