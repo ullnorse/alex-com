@@ -4,49 +4,14 @@ use egui::{Grid, Window, ComboBox, TextBuffer};
 
 mod serial;
 
+use serial::Serial;
 
 fn main() {
-    let (send, recv) = crossbeam_channel::bounded::<String>(10);
-
-    // crossbeam::scope(|s| {
-        std::thread::spawn(move || {
-            let mut port = serialport::new("/dev/ttyUSB0", 9600)
-                .open()
-                .unwrap();
-    
-            port.clear(serialport::ClearBuffer::All).unwrap();
-
-            let mut buffer = [0u8; 1];
-
-            let mut q = Vec::new();
-
-            loop {
-                match port.read_exact(&mut buffer) {
-                    Ok(_) => {
-                        let c = buffer[0] as char;
-                        match c {
-                            '\n' => {
-                                q.push(c);
-                                let s: String = q.iter().collect();
-                                send.send(s).unwrap();
-                                q.clear();
-                            },
-                            _ => q.push(c),
-                        }
-                    },
-                    Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => (),
-                    Err(e) => eprintln!("{:?}", e)
-                }
-            }
-        });
-    // }).unwrap();
-
-
     let options = eframe::NativeOptions::default();
     eframe::run_native(
         "Alex-Com",
         options,
-        Box::new(|_cc| Box::new(MyApp::new(recv))),
+        Box::new(|_cc| Box::new(MyApp::new())),
     );
 }
 
@@ -76,12 +41,12 @@ struct MyApp {
     current_text: String,
 
     device_connected: bool,
-    recv: crossbeam_channel::Receiver<String>,
 
+    serial: Serial,
 }
 
 impl MyApp {
-    fn new(recv: crossbeam_channel::Receiver<String>) -> Self {
+    fn new() -> Self {
         let mut app = Self {
             baudrates: vec![9600, 115200, 1000000],
             baudrate: 115200,
@@ -100,12 +65,13 @@ impl MyApp {
             local_echo: false,
 
             port_settings_open: false,
-            serial_devices: serial::available_ports(),
+            serial_devices: Serial::available_ports(),
             selected_serial_device: Default::default(),
 
             current_text: "".to_string(),
             device_connected: false,
-            recv
+
+            serial: Serial::new(),
         };
 
         app.selected_serial_device = if app.serial_devices.is_empty() {
@@ -117,42 +83,6 @@ impl MyApp {
         app
     }
 }
-
-// impl Default for MyApp {
-//     fn default() -> Self {
-//         let mut app = Self {
-//             baudrates: vec![9600, 115200, 1000000],
-//             baudrate: 115200,
-//             data_bits: [5, 6, 7, 8],
-
-//             stop_bits: [1, 2],
-//             selected_stop_bits: 1,
-
-//             parity: ["None".to_string(), "Odd".to_string(), "Even".to_string()],
-//             selected_parity: "None".to_string(),
-
-//             flow_control: ["None".to_string(), "Software".to_string(), "Hardware".to_string()],
-//             selected_flow_control: "None".to_string(),
-
-//             local_echo: false,
-
-//             selected_data_bits: 5,
-//             port_settings_open: false,
-//             serial_devices: serial::available_ports(),
-//             selected_serial_device: Default::default(),
-
-//             current_text: "Aleksa".to_string(),
-//         };
-
-//         app.selected_serial_device = if app.serial_devices.is_empty() {
-//             "".to_string()
-//         } else {
-//             app.serial_devices[0].clone()
-//         };
-
-//         app
-//     }
-// }
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -172,20 +102,19 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
                 if !self.device_connected {
-                    if ui.button("Connect").clicked() {
-                        if let Ok(serial_port) = serialport::new(&self.selected_serial_device, self.baudrate).open() {
-                            self.device_connected = true;
-                            println!("Device {} connected", serial_port.name().unwrap());
-                        }
-
+                    if ui.button("Connect").clicked() && self.serial.start( serial::SerialConfig { 
+                            port: self.selected_serial_device.clone(),
+                            baudrate: self.baudrate,
+                            ..Default::default() } ).is_ok() {
+                        self.device_connected = true;
                     }
                 } else if ui.button("Disconnect").clicked() {
-
+                    self.serial.stop();
                     self.device_connected = false;
                 }
 
                 if ui.button("Open port settings").clicked() {
-                    self.serial_devices = serial::available_ports();
+                    self.serial_devices = Serial::available_ports();
                     self.selected_serial_device = if self.serial_devices.is_empty() {
                         "".to_string()
                     } else {
@@ -269,23 +198,17 @@ impl eframe::App for MyApp {
                     });
                 });
 
-            // ui.add_sized(ui.available_size(), egui::TextEdit::multiline(&mut self.current_text).interactive(false));
-
             egui::containers::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show_viewport(ui, |ui, _viewport| {
                     ui.add_sized(ui.available_size(), egui::TextEdit::multiline(&mut self.current_text).interactive(false));
                 });
 
-            if ui.input().key_pressed(egui::Key::Enter) {
-                self.current_text.push_str("Aleksa\n");
-            }
-
             if ui.input().key_pressed(egui::Key::Backspace) {
                 self.current_text.clear();
             }
 
-            if let Ok(s) = self.recv.try_recv() {
+            if let Ok(s) = self.serial.get_receiver().try_recv() {
                 self.current_text.push_str(&s);
                 print!("{s}");
             }
