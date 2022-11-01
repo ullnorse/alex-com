@@ -27,6 +27,7 @@ impl Default for SerialConfig {
 pub struct Serial {
     state_channel: (Sender<bool>, Receiver<bool>),
     data_channel: (Sender<String>, Receiver<String>),
+    pub output_channel: (Sender<String>, Receiver<String>),
 }
 
 impl Default for Serial {
@@ -34,6 +35,7 @@ impl Default for Serial {
         Self {
             state_channel: unbounded(),
             data_channel: unbounded(),
+            output_channel: unbounded(),
         }
     }
 }
@@ -54,6 +56,8 @@ impl Serial {
     pub fn start(&self, config: SerialConfig) -> Result<()> {
         let (_, state_receiver) = self.state_channel.clone();
         let (data_sender, _) = self.data_channel.clone();
+        let (_, output_receiver) = self.output_channel.clone();
+
         let builder = serialport::new(config.port, config.baudrate)
             .data_bits(config.data_bits)
             .flow_control(config.flow_control)
@@ -72,24 +76,32 @@ impl Serial {
                     break;
                 }
 
-                match serial_port.read_exact(&mut buffer) {
-                    Ok(_) => {
-                        let c = buffer[0] as char;
-                        match c {
-                            '\n' => {
-                                q.push(c);
-                                let s: String = q.iter().collect();
-                                data_sender.send(s).unwrap();
-                                q.clear();
+                if serial_port.bytes_to_read().unwrap() > 0 {
+                    match serial_port.read_exact(&mut buffer) {
+                        Ok(_) => {
+                            let c = buffer[0] as char;
+                            match c {
+                                '\n' => {
+                                    q.push(c);
+                                    let s: String = q.iter().collect();
+                                    data_sender.send(s).unwrap();
+                                    q.clear();
+                                }
+                                _ => q.push(c),
                             }
-                            _ => q.push(c),
                         }
+                        Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => (),
+                        Err(e) => eprintln!("{:?}", e),
                     }
-                    Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => (),
-                    Err(e) => eprintln!("{:?}", e),
                 }
 
-                std::thread::sleep(std::time::Duration::from_millis(1));
+                if let Ok(s) = output_receiver.try_recv()
+                {
+                    serial_port.write_all(s.as_bytes()).unwrap();
+                    serial_port.flush().unwrap();
+                }
+
+                std::thread::sleep(std::time::Duration::from_micros(100));
             }
         });
 

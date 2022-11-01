@@ -1,6 +1,6 @@
 use eframe::egui;
 
-use egui::{Grid, Window, ComboBox, TextBuffer};
+use egui::{ComboBox, Grid, Style, TextBuffer, Visuals, Window};
 
 mod serial;
 
@@ -11,7 +11,14 @@ fn main() {
     eframe::run_native(
         "Alex-Com",
         options,
-        Box::new(|_cc| Box::new(MyApp::new())),
+        Box::new(|_cc| {
+            let style = Style {
+                visuals: Visuals::light(),
+                ..Style::default()
+            };
+            _cc.egui_ctx.set_style(style);
+            Box::new(MyApp::new())
+        }),
     );
 }
 
@@ -43,6 +50,8 @@ struct MyApp {
     device_connected: bool,
 
     serial: Serial,
+
+    send_text: String,
 }
 
 impl MyApp {
@@ -59,7 +68,11 @@ impl MyApp {
             parity: ["None".to_string(), "Odd".to_string(), "Even".to_string()],
             selected_parity: "None".to_string(),
 
-            flow_control: ["None".to_string(), "Software".to_string(), "Hardware".to_string()],
+            flow_control: [
+                "None".to_string(),
+                "Software".to_string(),
+                "Hardware".to_string(),
+            ],
             selected_flow_control: "None".to_string(),
 
             local_echo: false,
@@ -68,10 +81,12 @@ impl MyApp {
             serial_devices: Serial::available_ports(),
             selected_serial_device: Default::default(),
 
-            current_text: "".to_string(),
+            current_text: String::new(),
             device_connected: false,
 
             serial: Serial::new(),
+
+            send_text: String::new(),
         };
 
         app.selected_serial_device = if app.serial_devices.is_empty() {
@@ -87,13 +102,14 @@ impl MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::bottom("my_panel").show(ctx, |ui| {
-            ui.label(format!("{} | {}, {}{}{} flow control: {}",
-            self.selected_serial_device,
-            self.baudrate,
-            self.selected_data_bits,
-            self.selected_parity.char_range(0..1),
-            self.selected_stop_bits,
-            self.selected_flow_control,
+            ui.label(format!(
+                "{} | {}, {}{}{} flow control: {}",
+                self.selected_serial_device,
+                self.baudrate,
+                self.selected_data_bits,
+                self.selected_parity.char_range(0..1),
+                self.selected_stop_bits,
+                self.selected_flow_control,
             ));
 
             egui::widgets::global_dark_light_mode_switch(ui);
@@ -102,10 +118,16 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
                 if !self.device_connected {
-                    if ui.button("Connect").clicked() && self.serial.start( serial::SerialConfig { 
-                            port: self.selected_serial_device.clone(),
-                            baudrate: self.baudrate,
-                            ..Default::default() } ).is_ok() {
+                    if ui.button("Connect").clicked()
+                        && self
+                            .serial
+                            .start(serial::SerialConfig {
+                                port: self.selected_serial_device.clone(),
+                                baudrate: self.baudrate,
+                                ..Default::default()
+                            })
+                            .is_ok()
+                    {
                         self.device_connected = true;
                     }
                 } else if ui.button("Disconnect").clicked() {
@@ -123,6 +145,10 @@ impl eframe::App for MyApp {
 
                     self.port_settings_open = true;
                 }
+
+                if ui.button("Clear").clicked() {
+                    self.current_text.clear();
+                }
             });
 
             Window::new("Port Setup")
@@ -136,7 +162,11 @@ impl eframe::App for MyApp {
                             .selected_text(self.selected_serial_device.clone())
                             .show_ui(ui, |ui| {
                                 for device in &self.serial_devices {
-                                    ui.selectable_value(&mut self.selected_serial_device, device.to_string(), device);
+                                    ui.selectable_value(
+                                        &mut self.selected_serial_device,
+                                        device.to_string(),
+                                        device,
+                                    );
                                 }
                             });
                         ui.end_row();
@@ -146,7 +176,11 @@ impl eframe::App for MyApp {
                             .selected_text(format!("{}", self.baudrate as i32))
                             .show_ui(ui, |ui| {
                                 for baudrate in &self.baudrates {
-                                    ui.selectable_value(&mut self.baudrate, *baudrate, baudrate.to_string());
+                                    ui.selectable_value(
+                                        &mut self.baudrate,
+                                        *baudrate,
+                                        baudrate.to_string(),
+                                    );
                                 }
                             });
                         ui.end_row();
@@ -156,7 +190,11 @@ impl eframe::App for MyApp {
                             .selected_text(format!("{}", self.selected_data_bits))
                             .show_ui(ui, |ui| {
                                 for data_bits in self.data_bits {
-                                    ui.selectable_value(&mut self.selected_data_bits, data_bits, data_bits.to_string());
+                                    ui.selectable_value(
+                                        &mut self.selected_data_bits,
+                                        data_bits,
+                                        data_bits.to_string(),
+                                    );
                                 }
                             });
                         ui.end_row();
@@ -166,7 +204,11 @@ impl eframe::App for MyApp {
                             .selected_text(format!("{}", self.selected_stop_bits))
                             .show_ui(ui, |ui| {
                                 for stop_bits in self.stop_bits {
-                                    ui.selectable_value(&mut self.selected_stop_bits, stop_bits, stop_bits.to_string());
+                                    ui.selectable_value(
+                                        &mut self.selected_stop_bits,
+                                        stop_bits,
+                                        stop_bits.to_string(),
+                                    );
                                 }
                             });
                         ui.end_row();
@@ -176,7 +218,11 @@ impl eframe::App for MyApp {
                             .selected_text(&self.selected_parity)
                             .show_ui(ui, |ui| {
                                 for parity in &self.parity {
-                                    ui.selectable_value(&mut self.selected_parity, parity.clone(), parity);
+                                    ui.selectable_value(
+                                        &mut self.selected_parity,
+                                        parity.clone(),
+                                        parity,
+                                    );
                                 }
                             });
                         ui.end_row();
@@ -186,7 +232,11 @@ impl eframe::App for MyApp {
                             .selected_text(&self.selected_flow_control)
                             .show_ui(ui, |ui| {
                                 for flow_control in &self.flow_control {
-                                    ui.selectable_value(&mut self.selected_flow_control, flow_control.clone(), flow_control);
+                                    ui.selectable_value(
+                                        &mut self.selected_flow_control,
+                                        flow_control.clone(),
+                                        flow_control,
+                                    );
                                 }
                             });
                         ui.end_row();
@@ -194,23 +244,35 @@ impl eframe::App for MyApp {
                         ui.label("Local Echo");
                         ui.checkbox(&mut self.local_echo, "");
                         ui.end_row();
-
                     });
                 });
 
             egui::containers::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show_viewport(ui, |ui, _viewport| {
-                    ui.add_sized(ui.available_size(), egui::TextEdit::multiline(&mut self.current_text).interactive(false));
+                    ui.add_sized(
+                        ui.available_size(),
+                        egui::TextEdit::multiline(&mut self.current_text).interactive(false),
+                    );
                 });
-
-            if ui.input().key_pressed(egui::Key::Backspace) {
-                self.current_text.clear();
-            }
 
             if let Ok(s) = self.serial.get_receiver().try_recv() {
                 self.current_text.push_str(&s);
-                print!("{s}");
+            }
+
+            ui.add_sized(
+                ui.available_size(),
+                egui::TextEdit::singleline(&mut self.send_text).interactive(true),
+            );
+
+            if ui.input().key_pressed(egui::Key::Enter) {
+                let mut s = self.send_text.clone();
+                s.push('\n');
+                self.serial
+                    .output_channel
+                    .0
+                    .send(s)
+                    .unwrap();
             }
 
             ctx.request_repaint();
