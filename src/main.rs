@@ -1,10 +1,12 @@
 use eframe::egui;
 
-use egui::{ComboBox, Grid, Style, TextBuffer, Visuals, Window};
+use egui::{ComboBox, Grid, Style, TextBuffer, Visuals, Window, Widget};
 
 mod serial;
+mod widgets;
 
 use serial::Serial;
+use widgets::port_settings::PortSettings;
 
 fn main() {
     let options = eframe::NativeOptions::default();
@@ -39,6 +41,8 @@ struct MyApp {
     selected_flow_control: String,
 
     local_echo: bool,
+
+    port_settings: PortSettings,
 
     port_settings_open: bool,
 
@@ -75,6 +79,8 @@ impl MyApp {
             ],
             selected_flow_control: "None".to_string(),
 
+            port_settings: PortSettings::new(),
+
             local_echo: false,
 
             port_settings_open: false,
@@ -102,17 +108,20 @@ impl MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::bottom("my_panel").show(ctx, |ui| {
-            ui.label(format!(
-                "{} | {}, {}{}{} flow control: {}",
-                self.selected_serial_device,
-                self.baudrate,
-                self.selected_data_bits,
-                self.selected_parity.char_range(0..1),
-                self.selected_stop_bits,
-                self.selected_flow_control,
-            ));
-
-            egui::widgets::global_dark_light_mode_switch(ui);
+            ui.add_space(30f32);
+            ui.horizontal(|ui| {
+                egui::widgets::global_dark_light_mode_switch(ui);
+                ui.label(format!(
+                    "{} | {}, {}{}{} flow control: {}",
+                    self.selected_serial_device,
+                    self.baudrate,
+                    self.selected_data_bits,
+                    self.selected_parity.char_range(0..1),
+                    self.selected_stop_bits,
+                    self.selected_flow_control,
+                ));
+    
+            })
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -156,99 +165,100 @@ impl eframe::App for MyApp {
                 .resizable(false)
                 .open(&mut self.port_settings_open)
                 .show(ctx, |ui| {
-                    Grid::new("grid").show(ui, |ui| {
-                        ui.label("Device");
-                        ComboBox::from_id_source("device")
-                            .selected_text(self.selected_serial_device.clone())
-                            .show_ui(ui, |ui| {
-                                for device in &self.serial_devices {
-                                    ui.selectable_value(
-                                        &mut self.selected_serial_device,
-                                        device.to_string(),
-                                        device,
-                                    );
-                                }
-                            });
-                        ui.end_row();
+                    // Grid::new("grid").show(ui, |ui| {
+                    //     ui.label("Device");
+                    //     ComboBox::from_id_source("device")
+                    //         .selected_text(self.selected_serial_device.clone())
+                    //         .show_ui(ui, |ui| {
+                    //             for device in &self.serial_devices {
+                    //                 ui.selectable_value(
+                    //                     &mut self.selected_serial_device,
+                    //                     device.to_string(),
+                    //                     device,
+                    //                 );
+                    //             }
+                    //         });
+                    //     ui.end_row();
 
-                        ui.label("Baud Rate");
-                        ComboBox::from_id_source("baudrate")
-                            .selected_text(format!("{}", self.baudrate as i32))
-                            .show_ui(ui, |ui| {
-                                for baudrate in &self.baudrates {
-                                    ui.selectable_value(
-                                        &mut self.baudrate,
-                                        *baudrate,
-                                        baudrate.to_string(),
-                                    );
-                                }
-                            });
-                        ui.end_row();
+                    //     ui.label("Baud Rate");
+                    //     ComboBox::from_id_source("baudrate")
+                    //         .selected_text(format!("{}", self.baudrate as i32))
+                    //         .show_ui(ui, |ui| {
+                    //             for baudrate in &self.baudrates {
+                    //                 ui.selectable_value(
+                    //                     &mut self.baudrate,
+                    //                     *baudrate,
+                    //                     baudrate.to_string(),
+                    //                 );
+                    //             }
+                    //         });
+                    //     ui.end_row();
 
-                        ui.label("Data bits");
-                        ComboBox::from_id_source("databits")
-                            .selected_text(format!("{}", self.selected_data_bits))
-                            .show_ui(ui, |ui| {
-                                for data_bits in self.data_bits {
-                                    ui.selectable_value(
-                                        &mut self.selected_data_bits,
-                                        data_bits,
-                                        data_bits.to_string(),
-                                    );
-                                }
-                            });
-                        ui.end_row();
+                    //     ui.label("Data bits");
+                    //     ComboBox::from_id_source("databits")
+                    //         .selected_text(format!("{}", self.selected_data_bits))
+                    //         .show_ui(ui, |ui| {
+                    //             for data_bits in self.data_bits {
+                    //                 ui.selectable_value(
+                    //                     &mut self.selected_data_bits,
+                    //                     data_bits,
+                    //                     data_bits.to_string(),
+                    //                 );
+                    //             }
+                    //         });
+                    //     ui.end_row();
 
-                        ui.label("Stop Bits");
-                        ComboBox::from_id_source("stopbits")
-                            .selected_text(format!("{}", self.selected_stop_bits))
-                            .show_ui(ui, |ui| {
-                                for stop_bits in self.stop_bits {
-                                    ui.selectable_value(
-                                        &mut self.selected_stop_bits,
-                                        stop_bits,
-                                        stop_bits.to_string(),
-                                    );
-                                }
-                            });
-                        ui.end_row();
+                    //     ui.label("Stop Bits");
+                    //     ComboBox::from_id_source("stopbits")
+                    //         .selected_text(format!("{}", self.selected_stop_bits))
+                    //         .show_ui(ui, |ui| {
+                    //             for stop_bits in self.stop_bits {
+                    //                 ui.selectable_value(
+                    //                     &mut self.selected_stop_bits,
+                    //                     stop_bits,
+                    //                     stop_bits.to_string(),
+                    //                 );
+                    //             }
+                    //         });
+                    //     ui.end_row();
 
-                        ui.label("Parity");
-                        ComboBox::from_id_source("parity")
-                            .selected_text(&self.selected_parity)
-                            .show_ui(ui, |ui| {
-                                for parity in &self.parity {
-                                    ui.selectable_value(
-                                        &mut self.selected_parity,
-                                        parity.clone(),
-                                        parity,
-                                    );
-                                }
-                            });
-                        ui.end_row();
+                    //     ui.label("Parity");
+                    //     ComboBox::from_id_source("parity")
+                    //         .selected_text(&self.selected_parity)
+                    //         .show_ui(ui, |ui| {
+                    //             for parity in &self.parity {
+                    //                 ui.selectable_value(
+                    //                     &mut self.selected_parity,
+                    //                     parity.clone(),
+                    //                     parity,
+                    //                 );
+                    //             }
+                    //         });
+                    //     ui.end_row();
 
-                        ui.label("Flow control");
-                        ComboBox::from_id_source("flowcontrol")
-                            .selected_text(&self.selected_flow_control)
-                            .show_ui(ui, |ui| {
-                                for flow_control in &self.flow_control {
-                                    ui.selectable_value(
-                                        &mut self.selected_flow_control,
-                                        flow_control.clone(),
-                                        flow_control,
-                                    );
-                                }
-                            });
-                        ui.end_row();
+                    //     ui.label("Flow control");
+                    //     ComboBox::from_id_source("flowcontrol")
+                    //         .selected_text(&self.selected_flow_control)
+                    //         .show_ui(ui, |ui| {
+                    //             for flow_control in &self.flow_control {
+                    //                 ui.selectable_value(
+                    //                     &mut self.selected_flow_control,
+                    //                     flow_control.clone(),
+                    //                     flow_control,
+                    //                 );
+                    //             }
+                    //         });
+                    //     ui.end_row();
 
-                        ui.label("Local Echo");
-                        ui.checkbox(&mut self.local_echo, "");
-                        ui.end_row();
-                    });
+                    //     ui.label("Local Echo");
+                    //     ui.checkbox(&mut self.local_echo, "");
+                    //     ui.end_row();
+                    // });
                 });
 
             egui::containers::ScrollArea::vertical()
                 .auto_shrink([false, false])
+                .stick_to_bottom(true)
                 .show_viewport(ui, |ui, _viewport| {
                     ui.add_sized(
                         ui.available_size(),
@@ -275,7 +285,8 @@ impl eframe::App for MyApp {
                     .unwrap();
             }
 
-            ctx.request_repaint();
         });
+        
+        ctx.request_repaint();
     }
 }
