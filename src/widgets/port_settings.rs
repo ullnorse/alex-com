@@ -1,92 +1,110 @@
-use egui::{ComboBox, Grid, Response, Widget};
 use super::super::serial::Serial;
+use egui::{ComboBox, Grid, Response, Widget};
 
-#[derive(Clone)]
-pub struct PortSettings {
+pub struct PortSettings<'a> {
+    serial_devices: &'a Vec<String>,
+    serial_device: &'a mut String,
+
     baudrates: Vec<u32>,
-    baudrate: u32,
+    baudrate: &'a mut u32,
 
     data_bits: [u8; 4],
-    selected_data_bits: u8,
+    selected_data_bits: &'a mut u8,
 
     stop_bits: [u8; 2],
-    selected_stop_bits: u8,
+    selected_stop_bits: &'a mut u8,
 
     parity: [String; 3],
-    selected_parity: String,
+    selected_parity: &'a mut String,
 
     flow_control: [String; 3],
-    selected_flow_control: String,
+    selected_flow_control: &'a mut String,
 
-    local_echo: bool,
-
-    serial_devices: Vec<String>,
-    selected_serial_device: String,
+    local_echo: &'a mut bool,
 }
 
-impl Default for PortSettings {
-    fn default() -> Self {
-        Self { 
+// impl<'a> Default for PortSettings<'a> {
+//     fn default() -> Self {
+//         Self {
+//             // baudrates: vec![9600, 115200, 1000000],
+//             // baudrate: 115200,
+//             // data_bits: [5, 6, 7, 8],
+//             // selected_data_bits: 8,
+
+//             // stop_bits: [1, 2],
+//             // selected_stop_bits: 1,
+
+//             // parity: ["None".to_string(), "Odd".to_string(), "Even".to_string()],
+//             // selected_parity: "None".to_string(),
+
+            // flow_control: [
+            //     "None".to_string(),
+            //     "Software".to_string(),
+            //     "Hardware".to_string(),
+            // ],
+//             // selected_flow_control: "None".to_string(),
+
+//             // local_echo: false,
+
+//             serial_devices: Serial::available_ports(),
+//             selected_serial_device: &mut String::new(),
+//         }
+//     }
+// }
+
+impl<'a> PortSettings<'a> {
+    pub fn new(
+        serial_device: &'a mut String,
+        serial_devices: &'a Vec<String>,
+        baudrate: &'a mut u32,
+        selected_data_bits: &'a mut u8,
+        selected_stop_bits: &'a mut u8,
+        selected_parity: &'a mut String,
+        selected_flow_control: &'a mut String,
+        local_echo: &'a mut bool
+    ) -> Self {
+        Self {
+            serial_device,
+            serial_devices,
+            baudrate,
             baudrates: vec![9600, 115200, 1000000],
-            baudrate: 115200,
             data_bits: [5, 6, 7, 8],
-            selected_data_bits: 8,
-
+            selected_data_bits,
             stop_bits: [1, 2],
-            selected_stop_bits: 1,
-
+            selected_stop_bits,
             parity: ["None".to_string(), "Odd".to_string(), "Even".to_string()],
-            selected_parity: "None".to_string(),
-
+            selected_parity,
             flow_control: [
                 "None".to_string(),
                 "Software".to_string(),
                 "Hardware".to_string(),
             ],
-            selected_flow_control: "None".to_string(),
-
-            local_echo: false,
-
-            serial_devices: Serial::available_ports(),
-            selected_serial_device: Default::default(),
+            selected_flow_control,
+            local_echo,
         }
     }
 }
 
-impl PortSettings {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl Widget for PortSettings {
-    fn ui(mut self, ui: &mut egui::Ui) -> Response {
+impl<'a> Widget for PortSettings<'a> {
+    fn ui(self, ui: &mut egui::Ui) -> Response {
         Grid::new("grid")
             .show(ui, |ui| {
                 ui.label("Device");
                 ComboBox::from_id_source("device")
-                    .selected_text(self.selected_serial_device.clone())
+                    .selected_text(self.serial_device.to_string())
                     .show_ui(ui, |ui| {
-                        for device in &self.serial_devices {
-                            ui.selectable_value(
-                                &mut self.selected_serial_device,
-                                device.to_string(),
-                                device,
-                            );
+                        for device in self.serial_devices {
+                            ui.selectable_value(self.serial_device, device.clone(), device.clone());
                         }
                     });
                 ui.end_row();
 
                 ui.label("Baud Rate");
                 ComboBox::from_id_source("baudrate")
-                    .selected_text(format!("{}", self.baudrate as i32))
+                    .selected_text(format!("{}", *self.baudrate as i32))
                     .show_ui(ui, |ui| {
                         for baudrate in &self.baudrates {
-                            ui.selectable_value(
-                                &mut self.baudrate,
-                                *baudrate,
-                                baudrate.to_string(),
-                            );
+                            ui.selectable_value(self.baudrate, *baudrate, baudrate.to_string());
                         }
                     });
                 ui.end_row();
@@ -95,12 +113,8 @@ impl Widget for PortSettings {
                 ComboBox::from_id_source("databits")
                     .selected_text(format!("{}", self.selected_data_bits))
                     .show_ui(ui, |ui| {
-                        for data_bits in self.data_bits {
-                            ui.selectable_value(
-                                &mut self.selected_data_bits,
-                                data_bits,
-                                data_bits.to_string(),
-                            );
+                        for data_bits in &self.data_bits {
+                            ui.selectable_value(self.selected_data_bits, *data_bits, data_bits.to_string());
                         }
                     });
                 ui.end_row();
@@ -109,42 +123,34 @@ impl Widget for PortSettings {
                 ComboBox::from_id_source("stopbits")
                     .selected_text(format!("{}", self.selected_stop_bits))
                     .show_ui(ui, |ui| {
-                        for stop_bits in self.stop_bits {
-                            ui.selectable_value(
-                                &mut self.selected_stop_bits,
-                                stop_bits,
-                                stop_bits.to_string(),
-                            );
+                        for stop_bits in &self.stop_bits {
+                            ui.selectable_value(self.selected_stop_bits, *stop_bits, stop_bits.to_string());
                         }
                     });
                 ui.end_row();
 
                 ui.label("Parity");
                 ComboBox::from_id_source("parity")
-                    .selected_text(&self.selected_parity)
+                    .selected_text(self.selected_parity.to_string())
                     .show_ui(ui, |ui| {
-                        for parity in &self.parity {
-                            ui.selectable_value(&mut self.selected_parity, parity.clone(), parity);
+                        for parity in self.parity {
+                            ui.selectable_value(self.selected_parity, parity.clone(), parity.clone());
                         }
                     });
                 ui.end_row();
 
                 ui.label("Flow control");
                 ComboBox::from_id_source("flowcontrol")
-                    .selected_text(&self.selected_flow_control)
+                    .selected_text(self.selected_flow_control.to_string())
                     .show_ui(ui, |ui| {
                         for flow_control in &self.flow_control {
-                            ui.selectable_value(
-                                &mut self.selected_flow_control,
-                                flow_control.clone(),
-                                flow_control,
-                            );
+                            ui.selectable_value(self.selected_flow_control, flow_control.clone(), flow_control.clone());
                         }
                     });
                 ui.end_row();
 
                 ui.label("Local Echo");
-                ui.checkbox(&mut self.local_echo, "");
+                ui.checkbox(self.local_echo, "");
                 ui.end_row();
             })
             .response
