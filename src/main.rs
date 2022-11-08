@@ -1,12 +1,13 @@
 use eframe::egui;
 
-use egui::{Style, TextBuffer, Visuals, Window};
+use egui::{Style, TextBuffer, Visuals, Window, Button};
 
 mod serial;
 mod widgets;
 
 use serial::Serial;
 use widgets::port_settings::PortSettings;
+use widgets::line_end_picker::{LineEnd, LineEndPicker};
 
 fn main() {
     let options = eframe::NativeOptions::default();
@@ -44,6 +45,7 @@ struct MyApp {
     serial: Serial,
 
     send_text: String,
+    line_end: LineEnd,
 }
 
 impl MyApp {
@@ -66,6 +68,8 @@ impl MyApp {
             serial: Serial::new(),
 
             send_text: String::new(),
+
+            line_end: LineEnd::default(),
         };
 
         app.selected_serial_device = if app.serial_devices.is_empty() {
@@ -116,7 +120,13 @@ impl eframe::App for MyApp {
                     self.device_connected = false;
                 }
 
-                if ui.add_enabled(!self.device_connected, egui::Button::new("Open port settings")).clicked() {
+                if ui
+                    .add_enabled(
+                        !self.device_connected,
+                        egui::Button::new("Open port settings"),
+                    )
+                    .clicked()
+                {
                     self.serial_devices = Serial::available_ports();
                     self.selected_serial_device = if self.serial_devices.is_empty() {
                         "".to_string()
@@ -124,7 +134,7 @@ impl eframe::App for MyApp {
                         self.serial_devices[0].clone()
                     };
 
-                    self.port_settings_open = true;  
+                    self.port_settings_open = true;
                 }
 
                 if ui.button("Clear").clicked() {
@@ -163,16 +173,22 @@ impl eframe::App for MyApp {
                 self.current_text.push_str(&s);
             }
 
-            ui.add_sized(
-                ui.available_size(),
-                egui::TextEdit::singleline(&mut self.send_text).interactive(true),
-            );
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::LEFT), |ui| {
+                    ui.add_sized((30f32, ui.available_height()), LineEndPicker::new(&mut self.line_end));
+                    
+                    if ui.add_sized((80f32, ui.available_height()), Button::new("send")).clicked() {
+                        let mut s = self.send_text.clone();
+                        s.push('\n');
+                        self.serial.output_channel.0.send(s).unwrap();
+                    }
 
-            if ui.input().key_pressed(egui::Key::Enter) {
-                let mut s = self.send_text.clone();
-                s.push('\n');
-                self.serial.output_channel.0.send(s).unwrap();
-            }
+                    ui.add_sized(
+                        ui.available_size(),
+                        egui::TextEdit::singleline(&mut self.send_text),
+                    );
+                });
+            });
         });
 
         ctx.request_repaint();

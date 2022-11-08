@@ -1,4 +1,3 @@
-use super::super::serial::Serial;
 use egui::{ComboBox, Grid, Response, Widget};
 
 pub struct PortSettings<'a> {
@@ -23,35 +22,6 @@ pub struct PortSettings<'a> {
     local_echo: &'a mut bool,
 }
 
-// impl<'a> Default for PortSettings<'a> {
-//     fn default() -> Self {
-//         Self {
-//             // baudrates: vec![9600, 115200, 1000000],
-//             // baudrate: 115200,
-//             // data_bits: [5, 6, 7, 8],
-//             // selected_data_bits: 8,
-
-//             // stop_bits: [1, 2],
-//             // selected_stop_bits: 1,
-
-//             // parity: ["None".to_string(), "Odd".to_string(), "Even".to_string()],
-//             // selected_parity: "None".to_string(),
-
-            // flow_control: [
-            //     "None".to_string(),
-            //     "Software".to_string(),
-            //     "Hardware".to_string(),
-            // ],
-//             // selected_flow_control: "None".to_string(),
-
-//             // local_echo: false,
-
-//             serial_devices: Serial::available_ports(),
-//             selected_serial_device: &mut String::new(),
-//         }
-//     }
-// }
-
 impl<'a> PortSettings<'a> {
     pub fn new(
         serial_device: &'a mut String,
@@ -61,7 +31,7 @@ impl<'a> PortSettings<'a> {
         selected_stop_bits: &'a mut u8,
         selected_parity: &'a mut String,
         selected_flow_control: &'a mut String,
-        local_echo: &'a mut bool
+        local_echo: &'a mut bool,
     ) -> Self {
         Self {
             serial_device,
@@ -114,7 +84,11 @@ impl<'a> Widget for PortSettings<'a> {
                     .selected_text(format!("{}", self.selected_data_bits))
                     .show_ui(ui, |ui| {
                         for data_bits in &self.data_bits {
-                            ui.selectable_value(self.selected_data_bits, *data_bits, data_bits.to_string());
+                            ui.selectable_value(
+                                self.selected_data_bits,
+                                *data_bits,
+                                data_bits.to_string(),
+                            );
                         }
                     });
                 ui.end_row();
@@ -124,7 +98,11 @@ impl<'a> Widget for PortSettings<'a> {
                     .selected_text(format!("{}", self.selected_stop_bits))
                     .show_ui(ui, |ui| {
                         for stop_bits in &self.stop_bits {
-                            ui.selectable_value(self.selected_stop_bits, *stop_bits, stop_bits.to_string());
+                            ui.selectable_value(
+                                self.selected_stop_bits,
+                                *stop_bits,
+                                stop_bits.to_string(),
+                            );
                         }
                     });
                 ui.end_row();
@@ -134,7 +112,11 @@ impl<'a> Widget for PortSettings<'a> {
                     .selected_text(self.selected_parity.to_string())
                     .show_ui(ui, |ui| {
                         for parity in self.parity {
-                            ui.selectable_value(self.selected_parity, parity.clone(), parity.clone());
+                            ui.selectable_value(
+                                self.selected_parity,
+                                parity.clone(),
+                                parity.clone(),
+                            );
                         }
                     });
                 ui.end_row();
@@ -144,7 +126,11 @@ impl<'a> Widget for PortSettings<'a> {
                     .selected_text(self.selected_flow_control.to_string())
                     .show_ui(ui, |ui| {
                         for flow_control in &self.flow_control {
-                            ui.selectable_value(self.selected_flow_control, flow_control.clone(), flow_control.clone());
+                            ui.selectable_value(
+                                self.selected_flow_control,
+                                flow_control.clone(),
+                                flow_control.clone(),
+                            );
                         }
                     });
                 ui.end_row();
