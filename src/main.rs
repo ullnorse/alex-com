@@ -1,13 +1,13 @@
 use eframe::egui;
 
-use egui::{Style, TextBuffer, Visuals, Window, Button};
+use egui::{Button, Style, TextBuffer, Visuals, Window, Frame, Color32};
 
 mod serial;
 mod widgets;
 
 use serial::Serial;
-use widgets::port_settings::PortSettings;
 use widgets::line_end_picker::{LineEnd, LineEndPicker};
+use widgets::port_settings::PortSettings;
 
 fn main() {
     let options = eframe::NativeOptions::default();
@@ -46,6 +46,9 @@ struct MyApp {
 
     send_text: String,
     line_end: LineEnd,
+
+    tx_cnt: u32,
+    rx_cnt: u32,
 }
 
 impl MyApp {
@@ -70,6 +73,9 @@ impl MyApp {
             send_text: String::new(),
 
             line_end: LineEnd::default(),
+
+            tx_cnt: 0,
+            rx_cnt: 0,
         };
 
         app.selected_serial_device = if app.serial_devices.is_empty() {
@@ -85,25 +91,26 @@ impl MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::bottom("my_panel").show(ctx, |ui| {
-            ui.add_space(30f32);
             ui.horizontal(|ui| {
                 egui::widgets::global_dark_light_mode_switch(ui);
                 ui.label(format!(
-                    "{} | {}, {}{}{} flow control: {}",
+                    "{} | {}, {}{}{} flow control: {}             TX: {}, RX: {}",
                     self.selected_serial_device,
                     self.baudrate,
                     self.selected_data_bits,
                     self.selected_parity.char_range(0..1),
                     self.selected_stop_bits,
                     self.selected_flow_control,
+                    self.tx_cnt,
+                    self.rx_cnt,
                 ));
             })
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().frame(Frame::default().fill(Color32::from_rgb(229, 228, 226))).show(ctx, |ui| {
             ui.vertical(|ui| {
                 if !self.device_connected {
-                    if ui.button("Connect").clicked()
+                    if ui.add(Button::new("Connect").fill(Color32::LIGHT_BLUE)).clicked()
                         && self
                             .serial
                             .start(serial::SerialConfig {
@@ -115,7 +122,7 @@ impl eframe::App for MyApp {
                     {
                         self.device_connected = true;
                     }
-                } else if ui.button("Disconnect").clicked() {
+                } else if ui.add(Button::new("Disconnect").fill(Color32::LIGHT_BLUE)).clicked() {
                     self.serial.stop();
                     self.device_connected = false;
                 }
@@ -123,7 +130,7 @@ impl eframe::App for MyApp {
                 if ui
                     .add_enabled(
                         !self.device_connected,
-                        egui::Button::new("Open port settings"),
+                        egui::Button::new("Open port settings").fill(Color32::LIGHT_BLUE),
                     )
                     .clicked()
                 {
@@ -137,9 +144,41 @@ impl eframe::App for MyApp {
                     self.port_settings_open = true;
                 }
 
-                if ui.button("Clear").clicked() {
-                    self.current_text.clear();
-                }
+                egui::containers::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .stick_to_bottom(true)
+                    .max_height(400f32)
+                    .show_viewport(ui, |ui, _viewport| {
+                        ui.add_sized(
+                            [ui.available_width(), 400f32],
+                            egui::TextEdit::multiline(&mut self.current_text).interactive(false),
+                        );
+                    });
+
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::LEFT), |ui| {
+                        ui.add(LineEndPicker::new(70f32, &mut self.line_end));
+
+                        if ui.add_sized([50f32, 20f32], Button::new("send").fill(Color32::LIGHT_BLUE)).clicked() {
+                            let mut s = self.send_text.clone();
+                            s.push_str(self.line_end.to_value());
+                            println!("{:?}", s);
+
+                            self.tx_cnt += s.len() as u32;
+
+                            self.serial.output_channel.0.send(s).unwrap();
+                        }
+
+                        if ui.add_sized([50f32, 20f32], Button::new("clear").fill(Color32::LIGHT_BLUE)).clicked() {
+                            self.current_text.clear();
+                        }
+
+                        ui.add_sized(
+                            ui.available_size(),
+                            egui::TextEdit::singleline(&mut self.send_text),
+                        );
+                    });
+                });
             });
 
             Window::new("Port Setup")
@@ -159,36 +198,10 @@ impl eframe::App for MyApp {
                     ));
                 });
 
-            egui::containers::ScrollArea::vertical()
-                .auto_shrink([false, false])
-                .stick_to_bottom(true)
-                .show_viewport(ui, |ui, _viewport| {
-                    ui.add_sized(
-                        ui.available_size(),
-                        egui::TextEdit::multiline(&mut self.current_text).interactive(false),
-                    );
-                });
-
             if let Ok(s) = self.serial.get_receiver().try_recv() {
                 self.current_text.push_str(&s);
+                self.rx_cnt += s.len() as u32;
             }
-
-            ui.horizontal(|ui| {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::LEFT), |ui| {
-                    ui.add_sized((30f32, ui.available_height()), LineEndPicker::new(&mut self.line_end));
-                    
-                    if ui.add_sized((80f32, ui.available_height()), Button::new("send")).clicked() {
-                        let mut s = self.send_text.clone();
-                        s.push('\n');
-                        self.serial.output_channel.0.send(s).unwrap();
-                    }
-
-                    ui.add_sized(
-                        ui.available_size(),
-                        egui::TextEdit::singleline(&mut self.send_text),
-                    );
-                });
-            });
         });
 
         ctx.request_repaint();
