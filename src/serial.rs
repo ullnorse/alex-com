@@ -95,8 +95,7 @@ impl Serial {
                     }
                 }
 
-                if let Ok(s) = output_receiver.try_recv()
-                {
+                if let Ok(s) = output_receiver.try_recv() {
                     serial_port.write_all(s.as_bytes()).unwrap();
                     serial_port.flush().unwrap();
                 }

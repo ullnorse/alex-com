@@ -1,6 +1,6 @@
 use eframe::egui;
 
-use egui::{Grid, Window, ComboBox};
+use egui::{ComboBox, Grid, Window};
 
 fn main() {
     let options = eframe::NativeOptions::default();
@@ -20,7 +20,6 @@ struct MyApp {
 
     serial_devices: Vec<String>,
     selected_serial_device: String,
-
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -114,7 +113,11 @@ impl eframe::App for MyApp {
                             .selected_text(self.selected_serial_device.clone())
                             .show_ui(ui, |ui| {
                                 for device in &self.serial_devices {
-                                    ui.selectable_value(&mut self.selected_serial_device, device.to_string(), device);
+                                    ui.selectable_value(
+                                        &mut self.selected_serial_device,
+                                        device.to_string(),
+                                        device,
+                                    );
                                 }
                             });
                         ui.end_row();
@@ -123,8 +126,16 @@ impl eframe::App for MyApp {
                         ComboBox::from_id_source("baudrate")
                             .selected_text(format!("{}", self.radio_value as i32))
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate9600, "9600");
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate115200, "115200");
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate9600,
+                                    "9600",
+                                );
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate115200,
+                                    "115200",
+                                );
                             });
                         ui.end_row();
 
@@ -132,8 +143,16 @@ impl eframe::App for MyApp {
                         ComboBox::from_id_source("databits")
                             .selected_text(format!("{}", self.radio_value as i32))
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate9600, "9600");
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate115200, "115200");
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate9600,
+                                    "9600",
+                                );
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate115200,
+                                    "115200",
+                                );
                             });
                         ui.end_row();
 
@@ -141,8 +160,16 @@ impl eframe::App for MyApp {
                         ComboBox::from_id_source("stopbits")
                             .selected_text(format!("{}", self.radio_value as i32))
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate9600, "9600");
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate115200, "115200");
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate9600,
+                                    "9600",
+                                );
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate115200,
+                                    "115200",
+                                );
                             });
                         ui.end_row();
 
@@ -150,8 +177,16 @@ impl eframe::App for MyApp {
                         ComboBox::from_id_source("parity")
                             .selected_text(format!("{}", self.radio_value as i32))
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate9600, "9600");
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate115200, "115200");
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate9600,
+                                    "9600",
+                                );
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate115200,
+                                    "115200",
+                                );
                             });
                         ui.end_row();
 
@@ -159,8 +194,16 @@ impl eframe::App for MyApp {
                         ComboBox::from_id_source("handshake")
                             .selected_text(format!("{}", self.radio_value as i32))
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate9600, "9600");
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate115200, "115200");
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate9600,
+                                    "9600",
+                                );
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate115200,
+                                    "115200",
+                                );
                             });
                         ui.end_row();
 
@@ -168,8 +211,16 @@ impl eframe::App for MyApp {
                         ComboBox::from_id_source("access mode")
                             .selected_text(format!("{}", self.radio_value as i32))
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate9600, "9600");
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate115200, "115200");
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate9600,
+                                    "9600",
+                                );
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate115200,
+                                    "115200",
+                                );
                             });
                         ui.end_row();
 
@@ -177,12 +228,18 @@ impl eframe::App for MyApp {
                         ComboBox::from_id_source("localecho")
                             .selected_text(format!("{}", self.radio_value as i32))
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate9600, "9600");
-                                ui.selectable_value(&mut self.radio_value, Baudrates::Baudrate115200, "115200");
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate9600,
+                                    "9600",
+                                );
+                                ui.selectable_value(
+                                    &mut self.radio_value,
+                                    Baudrates::Baudrate115200,
+                                    "115200",
+                                );
                             });
                     });
-
-
 
                     // ui.vertical(|ui| {
                     //     ui.label("Port Settings");

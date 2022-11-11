@@ -7,11 +7,11 @@ mod widgets;
 
 use native_dialog::{FileDialog, Filter, MessageDialog, MessageType};
 use serial::Serial;
-use widgets::line_end_picker::{LineEnd, LineEndPicker};
-use widgets::port_settings::PortSettings;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
+use widgets::line_end_picker::{LineEnd, LineEndPicker};
+use widgets::port_settings::PortSettings;
 
 fn main() {
     let options = eframe::NativeOptions::default();
@@ -150,34 +150,36 @@ impl eframe::App for MyApp {
                             self.device_connected = false;
                         }
 
-                        if self.recording_started {
-                            if ui
+                        ui.add_enabled_ui(self.device_connected, |ui| {
+                            if self.recording_started {
+                                if ui
+                                    .add_sized(
+                                        [50f32, 20f32],
+                                        Button::new("Stop").fill(Color32::LIGHT_BLUE),
+                                    )
+                                    .clicked()
+                                {
+                                    self.recording_started = false;
+                                    self.log_file_name.clear();
+                                }
+                            } else if ui
                                 .add_sized(
                                     [50f32, 20f32],
-                                    Button::new("Stop").fill(Color32::LIGHT_BLUE),
+                                    Button::new("Record").fill(Color32::LIGHT_BLUE),
                                 )
                                 .clicked()
                             {
-                                self.recording_started = false;
-                                self.log_file_name.clear();
-                            }
-                        } else if ui
-                            .add_sized(
-                                [50f32, 20f32],
-                                Button::new("Record").fill(Color32::LIGHT_BLUE),
-                            )
-                            .clicked()
-                        {
-                            let path = FileDialog::new()
-                                .set_location(dirs::home_dir().unwrap().to_str().unwrap())
-                                .show_save_single_file()
-                                .unwrap();
+                                let path = FileDialog::new()
+                                    .set_location(dirs::home_dir().unwrap().to_str().unwrap())
+                                    .show_save_single_file()
+                                    .unwrap();
 
-                            if let Some(path) = path {
-                                self.log_file_name = path.to_str().unwrap().to_string();
-                                self.recording_started = true;
+                                if let Some(path) = path {
+                                    self.log_file_name = path.to_str().unwrap().to_string();
+                                    self.recording_started = true;
+                                }
                             }
-                        }
+                        });
 
                         if ui
                             .add_enabled(
@@ -276,8 +278,7 @@ impl eframe::App for MyApp {
                             .open(&self.log_file_name)
                         {
                             file.write_all(s.as_bytes()).ok();
-                        }
-                        else if let Ok(mut file) = OpenOptions::new()
+                        } else if let Ok(mut file) = OpenOptions::new()
                             .create(true)
                             .append(false)
                             .write(true)
@@ -285,24 +286,7 @@ impl eframe::App for MyApp {
                         {
                             file.write_all(s.as_bytes()).ok();
                         }
-
-
-
-                        // println!("got here");
-                        // if !Path::new(&self.log_file_name).exists() {
-                        //     println!("file didn't exist {:?}", self.log_file_name);
-                        //     std::fs::write(&self.log_file_name, s.as_bytes()).unwrap();
-                        // } else {
-                        //     println!("file existed");
-                        //     let mut file = OpenOptions::new()
-                        //         // .create(create)
-                        //         .append(true)
-                        //         .open(&self.log_file_name)
-                        //         .unwrap();
-    
-                        //     file.write_all(s.as_bytes()).unwrap();
-                        // }
-                    } 
+                    }
                 }
             });
 
