@@ -1,13 +1,17 @@
 use eframe::egui;
 
-use egui::{Button, Style, TextBuffer, Visuals, Window, Frame, Color32};
+use egui::{Button, Color32, Frame, Style, TextBuffer, Visuals, Window};
 
 mod serial;
 mod widgets;
 
+use native_dialog::{FileDialog, Filter, MessageDialog, MessageType};
 use serial::Serial;
 use widgets::line_end_picker::{LineEnd, LineEndPicker};
 use widgets::port_settings::PortSettings;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
+use std::path::Path;
 
 fn main() {
     let options = eframe::NativeOptions::default();
@@ -49,6 +53,9 @@ struct MyApp {
 
     tx_cnt: u32,
     rx_cnt: u32,
+
+    recording_started: bool,
+    log_file_name: String,
 }
 
 impl MyApp {
@@ -76,6 +83,9 @@ impl MyApp {
 
             tx_cnt: 0,
             rx_cnt: 0,
+
+            recording_started: false,
+            log_file_name: String::new(),
         };
 
         app.selected_serial_device = if app.serial_devices.is_empty() {
@@ -94,7 +104,7 @@ impl eframe::App for MyApp {
             ui.horizontal(|ui| {
                 egui::widgets::global_dark_light_mode_switch(ui);
                 ui.label(format!(
-                    "{} | {}, {}{}{} flow control: {}             TX: {}, RX: {}",
+                    "{} | {}, {}{}{} flow control: {}       TX: {}, RX: {}       {}",
                     self.selected_serial_device,
                     self.baudrate,
                     self.selected_data_bits,
@@ -103,106 +113,198 @@ impl eframe::App for MyApp {
                     self.selected_flow_control,
                     self.tx_cnt,
                     self.rx_cnt,
+                    if self.recording_started {
+                        format!("Logging to: {}", self.log_file_name)
+                    } else {
+                        String::new()
+                    }
                 ));
             })
         });
 
-        egui::CentralPanel::default().frame(Frame::default().fill(Color32::from_rgb(229, 228, 226))).show(ctx, |ui| {
-            ui.vertical(|ui| {
-                if !self.device_connected {
-                    if ui.add(Button::new("Connect").fill(Color32::LIGHT_BLUE)).clicked()
-                        && self
-                            .serial
-                            .start(serial::SerialConfig {
-                                port: self.selected_serial_device.clone(),
-                                baudrate: self.baudrate,
-                                ..Default::default()
-                            })
-                            .is_ok()
-                    {
-                        self.device_connected = true;
-                    }
-                } else if ui.add(Button::new("Disconnect").fill(Color32::LIGHT_BLUE)).clicked() {
-                    self.serial.stop();
-                    self.device_connected = false;
-                }
+        egui::CentralPanel::default()
+            .frame(Frame::default().fill(Color32::from_rgb(229, 228, 226)))
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        if !self.device_connected {
+                            if ui
+                                .add(Button::new("Connect").fill(Color32::LIGHT_BLUE))
+                                .clicked()
+                                && self
+                                    .serial
+                                    .start(serial::SerialConfig {
+                                        port: self.selected_serial_device.clone(),
+                                        baudrate: self.baudrate,
+                                        ..Default::default()
+                                    })
+                                    .is_ok()
+                            {
+                                self.device_connected = true;
+                            }
+                        } else if ui
+                            .add(Button::new("Disconnect").fill(Color32::LIGHT_BLUE))
+                            .clicked()
+                        {
+                            self.serial.stop();
+                            self.device_connected = false;
+                        }
 
-                if ui
-                    .add_enabled(
-                        !self.device_connected,
-                        egui::Button::new("Open port settings").fill(Color32::LIGHT_BLUE),
-                    )
-                    .clicked()
-                {
-                    self.serial_devices = Serial::available_ports();
-                    self.selected_serial_device = if self.serial_devices.is_empty() {
-                        "".to_string()
-                    } else {
-                        self.serial_devices[0].clone()
-                    };
+                        if self.recording_started {
+                            if ui
+                                .add_sized(
+                                    [50f32, 20f32],
+                                    Button::new("Stop").fill(Color32::LIGHT_BLUE),
+                                )
+                                .clicked()
+                            {
+                                self.recording_started = false;
+                                self.log_file_name.clear();
+                            }
+                        } else if ui
+                            .add_sized(
+                                [50f32, 20f32],
+                                Button::new("Record").fill(Color32::LIGHT_BLUE),
+                            )
+                            .clicked()
+                        {
+                            let path = FileDialog::new()
+                                .set_location(dirs::home_dir().unwrap().to_str().unwrap())
+                                .show_save_single_file()
+                                .unwrap();
 
-                    self.port_settings_open = true;
-                }
+                            if let Some(path) = path {
+                                self.log_file_name = path.to_str().unwrap().to_string();
+                                self.recording_started = true;
+                            }
+                        }
 
-                egui::containers::ScrollArea::vertical()
-                    .auto_shrink([false, false])
-                    .stick_to_bottom(true)
-                    .max_height(400f32)
-                    .show_viewport(ui, |ui, _viewport| {
-                        ui.add_sized(
-                            [ui.available_width(), 400f32],
-                            egui::TextEdit::multiline(&mut self.current_text).interactive(false),
-                        );
+                        if ui
+                            .add_enabled(
+                                !self.device_connected,
+                                egui::Button::new("Open port settings").fill(Color32::LIGHT_BLUE),
+                            )
+                            .clicked()
+                        {
+                            self.serial_devices = Serial::available_ports();
+                            self.selected_serial_device = if self.serial_devices.is_empty() {
+                                "".to_string()
+                            } else {
+                                self.serial_devices[0].clone()
+                            };
+
+                            self.port_settings_open = true;
+                        }
                     });
 
-                ui.horizontal(|ui| {
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::LEFT), |ui| {
-                        ui.add(LineEndPicker::new(70f32, &mut self.line_end));
+                    egui::containers::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .stick_to_bottom(true)
+                        .max_height(400f32)
+                        .show_viewport(ui, |ui, _viewport| {
+                            ui.add_sized(
+                                [ui.available_width(), 400f32],
+                                egui::TextEdit::multiline(&mut self.current_text)
+                                    .interactive(false),
+                            );
+                        });
 
-                        if ui.add_sized([50f32, 20f32], Button::new("send").fill(Color32::LIGHT_BLUE)).clicked() {
-                            let mut s = self.send_text.clone();
-                            s.push_str(self.line_end.to_value());
-                            println!("{:?}", s);
+                    ui.horizontal(|ui| {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::LEFT), |ui| {
+                            ui.add(LineEndPicker::new(70f32, &mut self.line_end));
 
-                            self.tx_cnt += s.len() as u32;
+                            if ui
+                                .add_sized(
+                                    [50f32, 20f32],
+                                    Button::new("send").fill(Color32::LIGHT_BLUE),
+                                )
+                                .clicked()
+                            {
+                                let mut s = self.send_text.clone();
+                                s.push_str(self.line_end.to_value());
+                                println!("{:?}", s);
 
-                            self.serial.output_channel.0.send(s).unwrap();
-                        }
+                                self.tx_cnt += s.len() as u32;
 
-                        if ui.add_sized([50f32, 20f32], Button::new("clear").fill(Color32::LIGHT_BLUE)).clicked() {
-                            self.current_text.clear();
-                        }
+                                self.serial.output_channel.0.send(s).unwrap();
+                            }
 
-                        ui.add_sized(
-                            ui.available_size(),
-                            egui::TextEdit::singleline(&mut self.send_text),
-                        );
+                            if ui
+                                .add_sized(
+                                    [50f32, 20f32],
+                                    Button::new("clear").fill(Color32::LIGHT_BLUE),
+                                )
+                                .clicked()
+                            {
+                                self.current_text.clear();
+                            }
+
+                            ui.add_sized(
+                                ui.available_size(),
+                                egui::TextEdit::singleline(&mut self.send_text),
+                            );
+                        });
                     });
                 });
+
+                Window::new("Port Setup")
+                    .collapsible(false)
+                    .resizable(false)
+                    .open(&mut self.port_settings_open)
+                    .show(ctx, |ui| {
+                        ui.add(PortSettings::new(
+                            &mut self.selected_serial_device,
+                            &self.serial_devices,
+                            &mut self.baudrate,
+                            &mut self.selected_data_bits,
+                            &mut self.selected_stop_bits,
+                            &mut self.selected_parity,
+                            &mut self.selected_flow_control,
+                            &mut self.local_echo,
+                        ));
+                    });
+
+                if let Ok(s) = self.serial.get_receiver().try_recv() {
+                    self.current_text.push_str(&s);
+                    self.rx_cnt += s.len() as u32;
+
+                    if self.recording_started {
+                        if let Ok(mut file) = OpenOptions::new()
+                            .create(false)
+                            .append(true)
+                            .write(true)
+                            .open(&self.log_file_name)
+                        {
+                            file.write_all(s.as_bytes()).ok();
+                        }
+                        else if let Ok(mut file) = OpenOptions::new()
+                            .create(true)
+                            .append(false)
+                            .write(true)
+                            .open(&self.log_file_name)
+                        {
+                            file.write_all(s.as_bytes()).ok();
+                        }
+
+
+
+                        // println!("got here");
+                        // if !Path::new(&self.log_file_name).exists() {
+                        //     println!("file didn't exist {:?}", self.log_file_name);
+                        //     std::fs::write(&self.log_file_name, s.as_bytes()).unwrap();
+                        // } else {
+                        //     println!("file existed");
+                        //     let mut file = OpenOptions::new()
+                        //         // .create(create)
+                        //         .append(true)
+                        //         .open(&self.log_file_name)
+                        //         .unwrap();
+    
+                        //     file.write_all(s.as_bytes()).unwrap();
+                        // }
+                    } 
+                }
             });
-
-            Window::new("Port Setup")
-                .collapsible(false)
-                .resizable(false)
-                .open(&mut self.port_settings_open)
-                .show(ctx, |ui| {
-                    ui.add(PortSettings::new(
-                        &mut self.selected_serial_device,
-                        &self.serial_devices,
-                        &mut self.baudrate,
-                        &mut self.selected_data_bits,
-                        &mut self.selected_stop_bits,
-                        &mut self.selected_parity,
-                        &mut self.selected_flow_control,
-                        &mut self.local_echo,
-                    ));
-                });
-
-            if let Ok(s) = self.serial.get_receiver().try_recv() {
-                self.current_text.push_str(&s);
-                self.rx_cnt += s.len() as u32;
-            }
-        });
 
         ctx.request_repaint();
     }
