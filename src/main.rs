@@ -104,8 +104,9 @@ impl eframe::App for MyApp {
             ui.horizontal(|ui| {
                 egui::widgets::global_dark_light_mode_switch(ui);
                 ui.label(format!(
-                    "{} | {}, {}{}{} flow control: {}       TX: {}, RX: {}       {}",
+                    "{} {} | {}, {}{}{} flow control: {}       TX: {}, RX: {}       {}",
                     self.selected_serial_device,
+                    if self.device_connected { "OPENED" } else { "CLOSED" },
                     self.baudrate,
                     self.selected_data_bits,
                     self.selected_parity.char_range(0..1),
@@ -141,6 +142,8 @@ impl eframe::App for MyApp {
                                     .is_ok()
                             {
                                 self.device_connected = true;
+                                self.tx_cnt = 0;
+                                self.rx_cnt = 0;
                             }
                         } else if ui
                             .add(Button::new("Disconnect").fill(Color32::LIGHT_BLUE))
