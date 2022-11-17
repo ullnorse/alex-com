@@ -4,7 +4,7 @@ use eframe::egui;
 
 use egui::{ComboBox, Sense};
 
-use egui::widgets::{Label, Button, Slider};
+use egui::widgets::{Button, Label, Slider};
 
 fn main() {
     let options = eframe::NativeOptions::default();
@@ -44,13 +44,11 @@ struct MyApp {
     age: i32,
     name: String,
     enum_value: i32,
-    
+
     baudrate: Baudrates,
 }
 
-struct State {
-
-}
+struct State {}
 
 impl eframe::App for MyApp {
     fn on_close_event(&mut self) -> bool {
@@ -96,14 +94,19 @@ impl eframe::App for MyApp {
             egui::ComboBox::from_label("Baudrates")
                 .selected_text(format!("{}", self.baudrate))
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.baudrate, Baudrates::Baud9600, format!("{}", Baudrates::Baud9600));
-                    ui.selectable_value(&mut self.baudrate, Baudrates::Baud115200, format!("{}", Baudrates::Baud115200));
-                }
-            );
+                    ui.selectable_value(
+                        &mut self.baudrate,
+                        Baudrates::Baud9600,
+                        format!("{}", Baudrates::Baud9600),
+                    );
+                    ui.selectable_value(
+                        &mut self.baudrate,
+                        Baudrates::Baud115200,
+                        format!("{}", Baudrates::Baud115200),
+                    );
+                });
 
             ui.label(format!("radio value = {}", self.baudrate));
-
-
         });
 
         // if self.show_confirmation_dialog {

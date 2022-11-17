@@ -1,7 +1,3 @@
-
-
-
-
 fn main() {
     println!("Crossbeam test");
 
@@ -12,10 +8,8 @@ fn main() {
         s.spawn(|_| {
             let mut i = 1;
 
-            let mut port = serialport::new("/dev/ttyUSB0", 9600)
-                .open()
-                .unwrap();
-    
+            let mut port = serialport::new("/dev/ttyUSB0", 9600).open().unwrap();
+
             port.clear(serialport::ClearBuffer::All).unwrap();
 
             let mut buffer = [0u8; 1];
@@ -32,12 +26,12 @@ fn main() {
                                 let s: String = q.iter().collect();
                                 print!("{s}");
                                 send.send(s).unwrap();
-                            },
+                            }
                             _ => q.push(c),
                         }
-                    },
+                    }
                     Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => (),
-                    Err(e) => eprintln!("{:?}", e)
+                    Err(e) => eprintln!("{:?}", e),
                 }
             }
 
@@ -54,6 +48,6 @@ fn main() {
                 }
             }
         });
-        
-    }).unwrap();
+    })
+    .unwrap();
 }

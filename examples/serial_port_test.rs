@@ -13,14 +13,15 @@ fn main() {
     // println!("--------------------------------------------------");
 
     // let ports: Vec<serialport::SerialPortInfo> = serialport::available_ports().unwrap();
-    let ports: Vec<String> =
-        available_ports()
+    let ports: Vec<String> = available_ports()
         .unwrap()
         .iter()
-        .filter_map(|port| if port.port_name.contains("USB") {
-            Some(port.port_name.clone())
-        } else {
-            None
+        .filter_map(|port| {
+            if port.port_name.contains("USB") {
+                Some(port.port_name.clone())
+            } else {
+                None
+            }
         })
         .collect();
 
@@ -28,11 +29,7 @@ fn main() {
         println!("{:?}", port);
     }
 
-    
-
-    let mut port = serialport::new(ports[0].clone(), 9600)
-        .open()
-        .unwrap();
+    let mut port = serialport::new(ports[0].clone(), 9600).open().unwrap();
 
     port.clear(serialport::ClearBuffer::All).unwrap();
 
@@ -49,14 +46,13 @@ fn main() {
                         q.push(c);
                         let s: String = q.iter().collect();
                         print!("{s}");
-                    },
+                    }
                     _ => q.push(c),
                 }
-            },
+            }
             Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
-            Err(e) => eprintln!("{:?}", e)
+            Err(e) => eprintln!("{:?}", e),
         }
-
     }
 
     // let port = serialport::SerialPortBuilder::
