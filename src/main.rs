@@ -13,8 +13,18 @@ use std::path::Path;
 use widgets::line_end_picker::{LineEnd, LineEndPicker};
 use widgets::port_settings::PortSettings;
 
+const ICON: &[u8; 172598] = include_bytes!("../alex-com.ico");
+
 fn main() {
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        icon_data: Some(eframe::IconData {
+            rgba: ICON.to_vec(),
+            width: 128,
+            height: 128,
+        }),
+        ..Default::default()
+    };
+
     eframe::run_native(
         "Alex-Com",
         options,
@@ -106,7 +116,11 @@ impl eframe::App for MyApp {
                 ui.label(format!(
                     "{} {} | {}, {}{}{} flow control: {}       TX: {}, RX: {}       {}",
                     self.selected_serial_device,
-                    if self.device_connected { "OPENED" } else { "CLOSED" },
+                    if self.device_connected {
+                        "OPENED"
+                    } else {
+                        "CLOSED"
+                    },
                     self.baudrate,
                     self.selected_data_bits,
                     self.selected_parity.char_range(0..1),
@@ -153,36 +167,35 @@ impl eframe::App for MyApp {
                             self.device_connected = false;
                         }
 
-                        ui.add_enabled_ui(self.device_connected, |ui| {
-                            if self.recording_started {
-                                if ui
-                                    .add_sized(
-                                        [50f32, 20f32],
-                                        Button::new("Stop").fill(Color32::LIGHT_BLUE),
-                                    )
-                                    .clicked()
-                                {
-                                    self.recording_started = false;
-                                    self.log_file_name.clear();
-                                }
-                            } else if ui
+                        if self.recording_started {
+                            if ui
                                 .add_sized(
                                     [50f32, 20f32],
-                                    Button::new("Record").fill(Color32::LIGHT_BLUE),
+                                    Button::new("Stop").fill(Color32::LIGHT_BLUE),
                                 )
                                 .clicked()
                             {
-                                let path = FileDialog::new()
-                                    .set_location(dirs::home_dir().unwrap().to_str().unwrap())
-                                    .show_save_single_file()
-                                    .unwrap();
-
-                                if let Some(path) = path {
-                                    self.log_file_name = path.to_str().unwrap().to_string();
-                                    self.recording_started = true;
-                                }
+                                self.recording_started = false;
+                                self.log_file_name.clear();
                             }
-                        });
+                        } else if ui
+                            .add_sized(
+                                [50f32, 20f32],
+                                Button::new("Record").fill(Color32::LIGHT_BLUE),
+                            )
+                            .clicked()
+                        {
+                            let path = FileDialog::new()
+                                .set_location(dirs::home_dir().unwrap().to_str().unwrap())
+                                .show_save_single_file()
+                                .unwrap();
+
+                            if let Some(path) = path {
+                                self.recording_started = true;
+                                self.log_file_name = path.to_str().unwrap().to_string();
+                                _ = File::create(path);
+                            }
+                        }
 
                         if ui
                             .add_enabled(
@@ -277,13 +290,6 @@ impl eframe::App for MyApp {
                         if let Ok(mut file) = OpenOptions::new()
                             .create(false)
                             .append(true)
-                            .write(true)
-                            .open(&self.log_file_name)
-                        {
-                            file.write_all(s.as_bytes()).ok();
-                        } else if let Ok(mut file) = OpenOptions::new()
-                            .create(true)
-                            .append(false)
                             .write(true)
                             .open(&self.log_file_name)
                         {
