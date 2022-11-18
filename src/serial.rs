@@ -100,7 +100,7 @@ impl Serial {
                     serial_port.flush().unwrap();
                 }
 
-                std::thread::sleep(std::time::Duration::from_micros(100));
+                // std::thread::sleep(std::time::Duration::from_micros(1));
             }
         });
 
