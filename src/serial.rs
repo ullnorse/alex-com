@@ -1,6 +1,13 @@
 use anyhow::Result;
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use serialport::{DataBits, FlowControl, Parity, StopBits};
+
+// use serialport::{DataBits, FlowControl, Parity, StopBits};
+
+use mio_serial::{SerialPortBuilderExt, available_ports, DataBits, FlowControl, Parity, StopBits, ClearBuffer, SerialPort};
+use mio::{Events, Interest, Poll, Token};
+use std::io::Read;
+
+const SERIAL_TOKEN: Token = Token(0);
 
 pub struct SerialConfig {
     pub port: String,
@@ -46,7 +53,7 @@ impl Serial {
     }
 
     pub fn available_ports() -> Vec<String> {
-        serialport::available_ports()
+        available_ports()
             .unwrap()
             .iter()
             .map(|port| port.port_name.clone())
@@ -58,49 +65,69 @@ impl Serial {
         let (data_sender, _) = self.data_channel.clone();
         let (_, output_receiver) = self.output_channel.clone();
 
-        let builder = serialport::new(config.port, config.baudrate)
-            .data_bits(config.data_bits)
-            .flow_control(config.flow_control)
-            .parity(config.parity)
-            .stop_bits(config.stop_bits);
+        // let builder = serialport::new(config.port, config.baudrate)
+        //     .data_bits(config.data_bits)
+        //     .flow_control(config.flow_control)
+        //     .parity(config.parity)
+        //     .stop_bits(config.stop_bits);
 
-        let mut serial_port = builder.open()?;
-        serial_port.clear(serialport::ClearBuffer::All)?;
+        // let mut serial_port = builder.open()?;
+        // serial_port.clear(serialport::ClearBuffer::All)?;
 
         std::thread::spawn(move || {
-            let mut buffer = [0u8; 1];
-            let mut q = Vec::new();
+            let mut poll = Poll::new().unwrap();
+
+            let mut events = Events::with_capacity(1);
+
+            let mut port = mio_serial::new(config.port, config.baudrate)
+                .data_bits(config.data_bits)
+                .flow_control(config.flow_control)
+                .parity(config.parity)
+                .stop_bits(config.stop_bits)
+                .open_native_async().unwrap();
+
+            port.clear(ClearBuffer::All).unwrap();
+
+            poll.registry()
+                .register(&mut port, SERIAL_TOKEN, Interest::READABLE)
+                .unwrap();
+
+            let mut buf = [0u8; 1024];
+
+            // let mut buffer = [0u8; 1];
+            // let mut q = Vec::new();
 
             loop {
                 if state_receiver.try_recv().is_ok() {
                     break;
                 }
 
-                if serial_port.bytes_to_read().unwrap() > 0 {
-                    match serial_port.read_exact(&mut buffer) {
-                        Ok(_) => {
-                            let c = buffer[0] as char;
-                            match c {
-                                '\n' => {
-                                    q.push(c);
-                                    let s: String = q.iter().collect();
-                                    data_sender.send(s).unwrap();
-                                    q.clear();
+                poll.poll(&mut events, Some(std::time::Duration::from_millis(1000))).ok();
+
+                println!("here 2");
+
+                for event in events.iter() {
+                    println!("test");
+                    if event.token() == SERIAL_TOKEN {
+                        loop {
+                            match port.read(&mut buf) {
+                                Ok(count) => {
+                                    let msg = String::from_utf8_lossy(&buf[..count]);
+
+                                    data_sender.send(msg.into_owned()).unwrap();
                                 }
-                                _ => q.push(c),
+
+                                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                                    break;
+                                }
+
+                                Err(e) => {
+                                    println!("Quitting due to read error: {}", e);
+                                }
                             }
                         }
-                        Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => (),
-                        Err(e) => eprintln!("{:?}", e),
                     }
                 }
-
-                if let Ok(s) = output_receiver.try_recv() {
-                    serial_port.write_all(s.as_bytes()).unwrap();
-                    serial_port.flush().unwrap();
-                }
-
-                // std::thread::sleep(std::time::Duration::from_micros(1));
             }
         });
 
