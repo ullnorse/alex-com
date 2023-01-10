@@ -1,17 +1,16 @@
 use eframe::egui;
 
-use egui::{Button, Color32, Frame, Style, TextBuffer, Visuals, Window};
+use egui::{Button, Color32, Style, TextBuffer, Visuals, Window};
 
 mod serial;
 mod widgets;
 
-use native_dialog::{FileDialog, Filter, MessageDialog, MessageType};
+use native_dialog::{FileDialog};
 use serial::Serial;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::path::Path;
 use widgets::line_end_picker::{LineEnd, LineEndPicker};
-use widgets::port_settings::PortSettings;
+use widgets::port_settings::PortSettingsWindow;
 
 const ICON: &[u8; 172598] = include_bytes!("../alex-com.ico");
 
@@ -167,7 +166,7 @@ impl eframe::App for MyApp {
                         .add(Button::new("Disconnect").fill(Color32::LIGHT_BLUE))
                         .clicked()
                     {
-                        self.serial.stop();
+                        self.serial.stop().ok();
                         self.device_connected = false;
                     }
 
@@ -276,7 +275,7 @@ impl eframe::App for MyApp {
                 .resizable(false)
                 .open(&mut self.port_settings_open)
                 .show(ctx, |ui| {
-                    ui.add(PortSettings::new(
+                    ui.add(PortSettingsWindow::new(
                         &mut self.selected_serial_device,
                         &self.serial_devices,
                         &mut self.baudrate,

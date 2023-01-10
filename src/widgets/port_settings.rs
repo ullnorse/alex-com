@@ -1,6 +1,6 @@
 use egui::{ComboBox, Grid, Response, Widget};
 
-pub struct PortSettings<'a> {
+pub struct PortSettingsWindow<'a> {
     serial_devices: &'a Vec<String>,
     serial_device: &'a mut String,
 
@@ -22,7 +22,7 @@ pub struct PortSettings<'a> {
     local_echo: &'a mut bool,
 }
 
-impl<'a> PortSettings<'a> {
+impl<'a> PortSettingsWindow<'a> {
     pub fn new(
         serial_device: &'a mut String,
         serial_devices: &'a Vec<String>,
@@ -55,7 +55,7 @@ impl<'a> PortSettings<'a> {
     }
 }
 
-impl<'a> Widget for PortSettings<'a> {
+impl<'a> Widget for PortSettingsWindow<'a> {
     fn ui(self, ui: &mut egui::Ui) -> Response {
         Grid::new("grid")
             .show(ui, |ui| {

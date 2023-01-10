@@ -1,8 +1,5 @@
 use anyhow::Result;
 use crossbeam_channel::{unbounded, Receiver, Sender};
-
-// use serialport::{DataBits, FlowControl, Parity, StopBits};
-
 use mio_serial::{SerialPortBuilderExt, available_ports, DataBits, FlowControl, Parity, StopBits, ClearBuffer, SerialPort};
 use mio::{Events, Interest, Poll, Token};
 use std::io::Read;
@@ -22,7 +19,7 @@ impl Default for SerialConfig {
     fn default() -> Self {
         Self {
             port: Default::default(),
-            baudrate: 9600,
+            baudrate: 115200,
             data_bits: DataBits::Eight,
             flow_control: FlowControl::None,
             parity: Parity::None,
@@ -65,50 +62,33 @@ impl Serial {
         let (data_sender, _) = self.data_channel.clone();
         let (_, output_receiver) = self.output_channel.clone();
 
-        // let builder = serialport::new(config.port, config.baudrate)
-        //     .data_bits(config.data_bits)
-        //     .flow_control(config.flow_control)
-        //     .parity(config.parity)
-        //     .stop_bits(config.stop_bits);
+        let mut poll = Poll::new()?;
+        let mut events = Events::with_capacity(5);
 
-        // let mut serial_port = builder.open()?;
-        // serial_port.clear(serialport::ClearBuffer::All)?;
+        let mut port = mio_serial::new(config.port, config.baudrate)
+            .data_bits(config.data_bits)
+            .flow_control(config.flow_control)
+            .parity(config.parity)
+            .stop_bits(config.stop_bits)
+            .open_native_async()?;
+
+        port.clear(ClearBuffer::All)?;
+
+        poll.registry()
+            .register(&mut port, SERIAL_TOKEN, Interest::READABLE)?;
+
+        let mut buf = vec![0u8; 100];
 
         std::thread::spawn(move || {
-            let mut poll = Poll::new().unwrap();
-
-            let mut events = Events::with_capacity(1);
-
-            let mut port = mio_serial::new(config.port, config.baudrate)
-                .data_bits(config.data_bits)
-                .flow_control(config.flow_control)
-                .parity(config.parity)
-                .stop_bits(config.stop_bits)
-                .open_native_async().unwrap();
-
-            port.clear(ClearBuffer::All).unwrap();
-
-            poll.registry()
-                .register(&mut port, SERIAL_TOKEN, Interest::READABLE)
-                .unwrap();
-
-            let mut buf = [0u8; 1024];
-
-            // let mut buffer = [0u8; 1];
-            // let mut q = Vec::new();
-
             loop {
                 if state_receiver.try_recv().is_ok() {
                     break;
                 }
 
-                poll.poll(&mut events, Some(std::time::Duration::from_millis(1000))).ok();
+                poll.poll(&mut events, Some(std::time::Duration::from_millis(100))).ok();
 
-                println!("here 2");
-
-                for event in events.iter() {
-                    println!("test");
-                    if event.token() == SERIAL_TOKEN {
+                for event in &events {
+                    if event.token() == SERIAL_TOKEN && event.is_readable() {
                         loop {
                             match port.read(&mut buf) {
                                 Ok(count) => {
@@ -134,10 +114,10 @@ impl Serial {
         Ok(())
     }
 
-    pub fn stop(&self) {
-        let (state_sender, _) = self.state_channel.clone();
+    pub fn stop(&self) -> Result<()> {
+        self.state_channel.0.send(true)?;
 
-        state_sender.send(true).unwrap();
+        Ok(())
     }
 
     pub fn get_receiver(&self) -> Receiver<String> {

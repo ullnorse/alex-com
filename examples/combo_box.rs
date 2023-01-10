@@ -1,17 +1,12 @@
-use std::fmt::format;
-
 use eframe::egui;
-
-use egui::{ComboBox, Sense};
-
-use egui::widgets::{Button, Label, Slider};
+use egui::widgets::{Slider};
 
 fn main() {
     let options = eframe::NativeOptions::default();
     eframe::run_native(
         "Confirm exit",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::<MyApp>::default()),
     );
 }
 
